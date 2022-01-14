@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-
 # author: Bounci
 # time: 2021/12/10
-# description: 
+# description: 关于geolife数据
 
-# 读取轨迹数据（单一csv文件）
-def read_csv_trajectory_file():
+import pandas as pd
+import numpy as np
+import math
+import os
+
+
+# 读取轨迹数据（单一plt文件）
+def read_plt_trajectory_file():
     pass
 
 
