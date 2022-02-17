@@ -1,60 +1,11 @@
 # -*- coding: utf-8 -*-
 # author: Bounci
 # time: 2022/1/11
-# description: 按标签文件提取有出行方式的轨迹片段，并剔除北京市范围外的轨迹
-#              处理时默认轨迹数据文件按时间顺序排列
+# description: 按标签文件提取有出行方式的轨迹片段。处理时默认轨迹数据文件按【时间顺序】排列
 
 import os
-import pandas as pd
 import numpy as np
-
-
-def read_label_txt(folder_path):
-    """
-    读取出行方式标签文件。
-
-    :param folder_path: 标签文件所在文件夹路径
-    :return: labelDF标签文件数据表
-    """
-    # 出行方式标签文件所在路径
-    txt_path = os.path.join(folder_path, "labels.txt")
-    column_name = ['start_time', 'end_time', 'mode']
-    # 读取标签文件,names指定列名，skiprows指定跳过第1行数据，
-    labelDF = pd.read_csv(txt_path, sep='\t', header=None, names=column_name, skiprows=1)
-    # 原始读取数据类型均为str，需要将时间转换为datetime类型，便于后续据时间分段轨迹
-    labelDF['start_time'] = pd.to_datetime(labelDF['start_time'], format='%Y/%m/%d %H:%M:%S')
-    labelDF['end_time'] = pd.to_datetime(labelDF['end_time'], format='%Y/%m/%d %H:%M:%S')
-
-    # print(labelDF.shape)  # 输出数据表大小
-    # print(type(labelDF['start_time'][0]))
-    # print(type(labelDF['end_time'][0]))
-    # print(type(labelDF['mode'][0]))
-    # print(labelDF.head())
-    return labelDF
-
-
-def read_traj_txt(traj_txt_path):
-    """
-    读取轨迹数据文件。
-
-    :param traj_txt_path: 轨迹数据文件路径
-    :return: trajDF轨迹数据表
-    """
-    column_name = ['lat', 'lon', '0', 'alt', 'datetime', 'date', 'time']
-    # 读取轨迹数据文件
-    trajDF = pd.read_csv(traj_txt_path, sep=',', header=None, names=column_name)
-    # 删除0和datetime列的数据（无意义/不使用）
-    trajDF.drop(['0', 'datetime'], axis=1, inplace=True)
-    # 将日期和时间列合并，并转为datetime类型数据
-    trajDF['timestamp'] = trajDF['date'] + ' ' + trajDF['time']
-    trajDF['timestamp'] = pd.to_datetime(trajDF['timestamp'], format='%Y/%m/%d %H:%M:%S')
-    trajDF.drop(['date', 'time'], axis=1, inplace=True)
-
-    print(trajDF.shape)  # 输出数据表大小
-    # print(type(trajDF['lat'][0]))
-    # print(type(trajDF['timestamp'][0]))
-    # print(trajDF.head())
-    return trajDF
+import FileOperation.traj_read_and_write as trw
 
 
 def traj_segmentation_one_folder(folder_path, output_path):
@@ -66,7 +17,7 @@ def traj_segmentation_one_folder(folder_path, output_path):
     :return:
     """
     # 读取交通方式标签数据
-    labelsDF = read_label_txt(folder_path)
+    labelsDF = trw.read_label_txt(folder_path)
     label_num = labelsDF.shape[0]  # 交通方式标签数据行数
     traj_folder_path = os.path.join(folder_path, "Trajectory")  # 轨迹文件所在文件夹路径
     traj_file_list = os.listdir(traj_folder_path)  # 获取所有轨迹文件名
@@ -77,7 +28,7 @@ def traj_segmentation_one_folder(folder_path, output_path):
     traj_file_name = traj_file_list[traj_file_index]  # 获取轨迹文件名，后续输出轨迹片段也要使用
     traj_path = os.path.join(traj_folder_path, traj_file_name)  # 轨迹文件所在路径
     # 读取轨迹数据
-    trajectoryDF = read_traj_txt(traj_path)
+    trajectoryDF = trw.read_traj_txt(traj_path)
     is_traj_left = True  # 判断当前轨迹数据是否还有数据未遍历，初始情况下无需读取轨迹数据文件，为Ture
 
     # 根据交通方式标签数据，依次划分轨迹片段，并另存为轨迹片段文件
@@ -97,7 +48,7 @@ def traj_segmentation_one_folder(folder_path, output_path):
                 sub_traj_id = 1  # 子轨迹id，以轨迹文件为单次递增空间，输出子轨迹时使用
                 traj_file_name = traj_file_list[traj_file_index]  # 获取轨迹文件名，后续输出轨迹片段也要使用
                 traj_path = os.path.join(traj_folder_path, traj_file_name)  # 轨迹文件所在路径
-                trajectoryDF = read_traj_txt(traj_path)  # 读取轨迹数据
+                trajectoryDF = trw.read_traj_txt(traj_path)  # 读取轨迹数据
 
                 print(traj_path)  # 输出当前处理轨迹数据路径
 
@@ -159,6 +110,10 @@ def traj_segmentation_one_folder(folder_path, output_path):
 
                 if sub_traj_output_start <= sub_traj_output_end:
                     sub_traj = trajectoryDF[sub_traj_output_start:sub_traj_output_end + 1]
+                    sub_traj = sub_traj.copy()  # 防止添加数据列时出现警告
+                    # 为有出行方式标签的数据增加一列属性表征各个轨迹点的所属出行方式‘mode’
+                    sub_traj.loc[:, 'mode'] = seg_mode
+
                     # 删除已经输出的子轨迹，或只有一个点的轨迹片段
                     trajectoryDF.drop(np.arange(0, sub_traj_output_end + 1, 1, int), axis=0, inplace=True)
                     trajectoryDF = trajectoryDF.reset_index(drop=True)  # 重置索引
@@ -200,7 +155,7 @@ def training_traj_segmentation(data_path, output_path):
 
 
 if __name__ == '__main__':
-    path = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Process_01"
+    path = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Filtered_Data"
     output = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Training_traj_segments_02"
     # read_label_txt(path)
     # traj_path = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Process_01/010/Trajectory/20080328144824.txt"

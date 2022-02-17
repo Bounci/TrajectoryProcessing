@@ -44,7 +44,6 @@ def plt2txt_one_folder(data_root_path, userdata_folder_path):
 
     :param data_root_path: 数据文件夹的路径。
     :param userdata_folder_path: 原始志愿者数据文件夹的路径。
-    :return:
     """
     # 获取某一志愿者轨迹数据文件夹（指定文件夹）下所有文件名列表
     user_folder_files_list = os.listdir(userdata_folder_path)
