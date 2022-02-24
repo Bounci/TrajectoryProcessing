@@ -30,9 +30,9 @@ def read_label_txt(folder_path):
     return labelDF
 
 
-def read_traj_txt(traj_txt_path):
+def read_raw_traj_txt(traj_txt_path):
     """
-    读取轨迹数据文件。
+    读取原始轨迹数据文件。
 
     :param traj_txt_path: 轨迹数据文件路径
     :return: trajDF轨迹数据表
@@ -52,6 +52,44 @@ def read_traj_txt(traj_txt_path):
     # print(type(trajDF['lat'][0]))
     # print(type(trajDF['timestamp'][0]))
     # print(trajDF.head())
+    return trajDF
+
+
+def read_traj_txt(traj_txt_path):
+    """
+    读取过滤后的轨迹数据文件。
+
+    :param traj_txt_path: 轨迹数据文件路径
+    :return: trajDF轨迹数据表
+    """
+    column_name = ['lat', 'lon', 'alt', 'timestamp']
+    # 读取轨迹数据文件
+    trajDF = pd.read_csv(traj_txt_path, sep=',', header=None, names=column_name)
+    trajDF['timestamp'] = pd.to_datetime(trajDF['timestamp'], format='%Y/%m/%d %H:%M:%S')
+    print(trajDF.shape)  # 输出数据表大小
+    return trajDF
+
+
+def read_mode_traj(traj_txt_path):
+    """
+    读取过滤后的轨迹数据文件。
+
+    :param traj_txt_path: 轨迹数据文件路径
+    :return: trajDF轨迹数据表
+    """
+    column_name = ['lat', 'lon', 'alt', 'timestamp', 'mode']
+    # 读取轨迹数据文件
+    trajDF = pd.read_csv(traj_txt_path, sep=',', header=None, names=column_name)
+    trajDF['timestamp'] = pd.to_datetime(trajDF['timestamp'], format='%Y/%m/%d %H:%M:%S')
+    print(trajDF.shape)  # 输出数据表大小
+    return trajDF
+
+
+def read_traj_with_feature(traj_txt_path):
+    # 含轨迹点特征的数据 有表头，读取数据时需要跳过
+    # 读取轨迹数据文件
+    trajDF = pd.read_csv(traj_txt_path, sep=',', header=0)
+    print(trajDF.shape)  # 输出数据表大小
     return trajDF
 
 

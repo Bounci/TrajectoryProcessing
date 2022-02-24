@@ -5,6 +5,8 @@
 #              处理策略：取相同时间戳点的均值替代所有同时刻点。
 #              ②剔除给定范围经纬度范围外的数据
 #              处理策略：遇到范围外的点即切断，存为单独的子轨迹文件，删除范围外的点；剔除少于3个点的轨迹段。
+#              ③提取交通方式为walk、bike、taxi、car、subway、bus的轨迹段
+#              处理策略：不复制标签为除以上几种之外的轨迹
 
 import os
 import pandas as pd
@@ -55,20 +57,21 @@ def scope_filter(trajectory, output_path):
             num += 1
             # 获取子轨迹片段
             sub_traj = trajectory[sub_traj_start: point_num]
-            trajectory.drop(axis=0, index=point_num, inplace=True)  # 删除范围外的点
+            # 为避免取子轨迹时出错，采取跳过索引的方式过滤
+            # trajectory.drop(axis=0, index=point_num, inplace=True)  # 删除范围外的点
             traj_is_cut = True
             sub_traj_start = point_num + 1  # 更新输出轨迹起始索引
-            sub_traj2txt(sub_traj, output_path, sub_traj_index)
-            sub_traj_index += 1
-        # 轨迹经过裁剪且最后一个点在范围内
-        if traj_is_cut & point_num == org_traj_num:
+            if sub_traj2txt(sub_traj, output_path, sub_traj_index):
+                sub_traj_index += 1
+        # 轨迹经过裁剪且最后一个点在范围内      【条件并列用and不然可能不起作用】
+        if traj_is_cut and point_num == org_traj_num - 1:
             sub_traj = trajectory[sub_traj_start: point_num]
             sub_traj2txt(sub_traj, output_path, sub_traj_index)
     # 轨迹未被裁剪，则直接存储整条轨迹
     if not traj_is_cut:
         # 轨迹输出路径+具体文件名
         sub_traj_path = "{}.txt".format(output_path)
-        trajectory.to_csv(sub_traj_path, sep=',', index=False, header=True)
+        trajectory.to_csv(sub_traj_path, sep=',', index=False, header=False)
     print("范围外：", num)
 
 
@@ -79,12 +82,14 @@ def sub_traj2txt(sub_traj, output_path, sub_traj_index):
     :param sub_traj: 子轨迹dataframe
     :param output_path: 输出路径
     :param sub_traj_index: 子轨迹编号
+    :return: 成功存储与否
     """
     # 判断子轨迹点数量是否小于3，对于少于3个轨迹点的轨迹不另存为txt
     if len(sub_traj) < 3:
-        return
+        return False
     sub_traj_path = "{0}_{1}.txt".format(output_path, sub_traj_index)
-    sub_traj.to_csv(sub_traj_path, sep=',', index=False, header=True)
+    sub_traj.to_csv(sub_traj_path, sep=',', index=False, header=False)  # 不要表头
+    return True
 
 
 def traj_filter_one_folder(folder_path, output_path):
@@ -112,11 +117,13 @@ def traj_filter_one_folder(folder_path, output_path):
 
         # 判断轨迹是否存在时间戳[timestamp]重复的问题；若不存在，则进行范围筛选处理
         if not trajectoryDF.timestamp.duplicated().any():
+            print("重复点：", 0)
             # 筛选北京范围内的数据
             scope_filter(trajectoryDF, sub_traj_path)
             continue
         # 存在重复
         traj = repetition_filter(trajectoryDF)
+        print("重复点：", len(trajectoryDF) - len(traj))
         # 筛选北京范围内的数据
         scope_filter(traj, sub_traj_path)
 
@@ -140,25 +147,65 @@ def traj_filter(data_path, output_path):
             continue
 
         # 处理后的轨迹数据输出路径
-        output_path = os.path.join(output_path, folder_name)
-        out_traj_path = os.path.join(output_path, "Trajectory")
+        out_path = os.path.join(output_path, folder_name)
+        out_traj_path = os.path.join(out_path, "Trajectory")
         # 判断输出文件夹是否存在，若不在，则创建。
-        if not os.path.exists(output_path):
-            os.mkdir(output_path)
+        if not os.path.exists(out_path):
+            os.mkdir(out_path)
             os.mkdir(out_traj_path)
             # 原始labels文件路径
             raw_file_path = os.path.join(traj_folder_path, "labels.txt")
             # 复制至
-            txt_path = os.path.join(output_path, "labels.txt")
+            txt_path = os.path.join(out_path, "labels.txt")
             shutil.copyfile(raw_file_path, txt_path)  # 复制labels.txt
         # 去重选范围
         traj_filter_one_folder(traj_folder_path, out_traj_path)
 
 
+def get_traffic_mode():
+    """
+    获取子轨迹段所有的交通方式类别。
+    """
+    # 子轨迹存储位置
+    file_path = r"E:\Users\Desktop\Traffic_Pattern_Mining\2_TrajectoryModeClassify\3_Data\Training_traj_segments_02"
+    traj_flies = os.listdir(file_path)  # 轨迹文件名
+    mode = []
+    for file in traj_flies:
+        traffic_mode = file.split('.')[0].split('_')[-1]
+        mode.append(traffic_mode)
+    uni_mode = list(set(mode))
+    print(uni_mode)  # ['subway', 'bus', 'train', 'car', 'boat', 'run', 'airplane', 'walk', 'bike', 'taxi']
+
+
+def select_experimental_traj():
+    """
+    选取要用于提取特征的轨迹段。
+    """
+    # 子轨迹存储位置
+    file_path = r"E:\Users\Desktop\Traffic_Pattern_Mining\2_TrajectoryModeClassify\3_Data\Training_traj_segments_02"
+    traj_flies = os.listdir(file_path)  # 轨迹文件名
+    # 存储路径
+    target_path = r"E:\Users\Desktop\Traffic_Pattern_Mining\2_TrajectoryModeClassify\3_Data\Used_sub_traj"
+    for file in traj_flies:
+        traffic_mode = file.split('.')[0].split('_')[-1]
+        if traffic_mode == 'airplane' or traffic_mode == 'train' or traffic_mode == 'boat' or traffic_mode == 'run':
+            continue
+        raw_file_path = os.path.join(file_path, file)
+        # 复制至
+        txt_path = os.path.join(target_path, file)
+        shutil.copyfile(raw_file_path, txt_path)  # 复制轨迹文件
+
+
 if __name__ == '__main__':
-    path = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Process_01"
-    output = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Training_traj_segments_02"
-    traj_filter(path, output)
+    # path = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/test"
+    # output = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/testr"
+    # 处理重复时间戳及范围外数据
+    # path = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Process_01"
+    # output = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Filtered_Data"
+    # traj_filter(path, output)
+
+    # get_traffic_mode()  # 获取子轨迹段所有的交通方式类别
+    select_experimental_traj()  # 选取分类要使用的轨迹数据
 
     # df = {'id': [1, 2, 3, 4, 1, 1, 2, 4], 'score': [2, 2, 4, 5, 6, 2, 4, 3], 'dis': [3, 4, 4, 3, 3, 6, 6, 8]}
     # df = pd.DataFrame(df)

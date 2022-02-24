@@ -25,10 +25,14 @@ def traj_segmentation_one_folder(folder_path, output_path):
     traj_file_index = 0  # 初始轨迹文件索引为0
     sub_traj_id = 1  # 子轨迹id
 
+    # 若遇无轨迹的文件夹，则跳过处理
+    if len(traj_file_list) == 0:
+        return
+
     traj_file_name = traj_file_list[traj_file_index]  # 获取轨迹文件名，后续输出轨迹片段也要使用
     traj_path = os.path.join(traj_folder_path, traj_file_name)  # 轨迹文件所在路径
     # 读取轨迹数据
-    trajectoryDF = trw.read_traj_txt(traj_path)
+    trajectoryDF = trw.read_traj_txt(traj_path)  # 若处理原始数据则修改轨迹读取函数
     is_traj_left = True  # 判断当前轨迹数据是否还有数据未遍历，初始情况下无需读取轨迹数据文件，为Ture
 
     # 根据交通方式标签数据，依次划分轨迹片段，并另存为轨迹片段文件
@@ -48,7 +52,7 @@ def traj_segmentation_one_folder(folder_path, output_path):
                 sub_traj_id = 1  # 子轨迹id，以轨迹文件为单次递增空间，输出子轨迹时使用
                 traj_file_name = traj_file_list[traj_file_index]  # 获取轨迹文件名，后续输出轨迹片段也要使用
                 traj_path = os.path.join(traj_folder_path, traj_file_name)  # 轨迹文件所在路径
-                trajectoryDF = trw.read_traj_txt(traj_path)  # 读取轨迹数据
+                trajectoryDF = trw.read_traj_txt(traj_path)  # 若处理原始数据则修改轨迹读取函数
 
                 print(traj_path)  # 输出当前处理轨迹数据路径
 
@@ -125,7 +129,7 @@ def traj_segmentation_one_folder(folder_path, output_path):
                                                                                   traj_file_name.split('.')[0],
                                                                                   sub_traj_id,
                                                                                   seg_mode))
-                        sub_traj.to_csv(sub_traj_path, sep=',', index=False, header=True)
+                        sub_traj.to_csv(sub_traj_path, sep=',', index=False, header=False)
                         sub_traj_id += 1  # 增加子轨迹id
                 # 轨迹数据表无数据剩余
                 if trajectoryDF.shape[0] <= 1:
@@ -156,6 +160,7 @@ def training_traj_segmentation(data_path, output_path):
 
 if __name__ == '__main__':
     path = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Filtered_Data"
+    # path = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Process_01"
     output = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Training_traj_segments_02"
     # read_label_txt(path)
     # traj_path = "E:/Users/Desktop/Traffic_Pattern_Mining/2_TrajectoryModeClassify/3_Data/Process_01/010/Trajectory/20080328144824.txt"

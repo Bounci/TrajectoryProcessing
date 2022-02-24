@@ -35,10 +35,10 @@ if __name__ == '__main__':
     print(os.getcwd())
     # 获取当前文件上级目录
     print(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
-    print(os.path.abspath(os.path.join(os.getcwd(), "..")))
+    print(os.path.abspath(os.path.join(os.getcwd(), "../..")))
     print(os.path.dirname(os.getcwd()))
     # 设置路径为当前文件夹上层目录的XX文件夹
     path = os.path.join(os.path.dirname(os.getcwd()), "XX")
     print(path)
     # 获取当前文件夹的上两级目录
-    print(os.path.abspath(os.path.join(os.getcwd(), "../..")))
+    print(os.path.abspath(os.path.join(os.getcwd(), "../../..")))
